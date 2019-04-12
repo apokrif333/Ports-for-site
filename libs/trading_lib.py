@@ -433,4 +433,4 @@ def plot_capital_plotly(chart_name: str, date: list, capital: list, show_table: 
         data=plt_data,
         layout=plt_layout
     )
-    plot(fig, show_link=False, filename='img/' + chart_name + '.html')
+    plot(fig, show_link=False, filename=chart_name + '.html')
