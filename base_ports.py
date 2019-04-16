@@ -305,7 +305,6 @@ class BasePortfolio:
 
         port_weights = self.portfolios[port_name]
         data = self.all_tickers_data
-        price = 'Close' if self.rebalance_at == 'close' else 'Open'
         capital_after_trades = 0
         total_pos_weight = 0
 
@@ -316,10 +315,10 @@ class BasePortfolio:
         for i in range(1, len(port_weights.keys()) + 1):
             ticker = list(port_weights.keys())[i - 1]
             capital_after_comm = port_weights[ticker] * self.balance_start - \
-                                 self.trade_commiss(port_weights[ticker] * self.balance_start / data[ticker][price][day_number])
+                                 self.trade_commiss(port_weights[ticker] * self.balance_start / data[ticker][self.price][day_number])
             self.strategy_data['Ticker_' + str(i)][day_number] = ticker
-            self.strategy_data['Shares_' + str(i)][day_number] = capital_after_comm / data[ticker][price][day_number]
-            self.strategy_data['Price_' + str(i)][day_number] = data[ticker][price][day_number]
+            self.strategy_data['Shares_' + str(i)][day_number] = capital_after_comm / data[ticker][self.price][day_number]
+            self.strategy_data['Price_' + str(i)][day_number] = data[ticker][self.price][day_number]
             capital_after_trades += capital_after_comm
             total_pos_weight += port_weights[ticker]
 
@@ -340,7 +339,6 @@ class BasePortfolio:
 
         port_weights = self.portfolios[port_name]
         data = self.all_tickers_data
-        price = 'Close' if self.rebalance_at == 'close' else 'Open'
 
         capital = self.calculate_capital_at_rebalance_day(port_name, day_number)
         capital = capital - self.rebalance_commissions(capital, port_name, day_number)
@@ -350,8 +348,8 @@ class BasePortfolio:
         for i in range(1, len(port_weights.keys()) + 1):
             ticker = list(port_weights.keys())[i-1]
             self.strategy_data['Ticker_' + str(i)][day_number] = ticker
-            self.strategy_data['Shares_' + str(i)][day_number] = capital * port_weights[ticker] / data[ticker][price][day_number]
-            self.strategy_data['Price_' + str(i)][day_number] = data[ticker][price][day_number]
+            self.strategy_data['Shares_' + str(i)][day_number] = capital * port_weights[ticker] / data[ticker][self.price][day_number]
+            self.strategy_data['Price_' + str(i)][day_number] = data[ticker][self.price][day_number]
             total_pos_weight += port_weights[ticker]
 
         self.strategy_data['Cash'][day_number] = capital * (1 - total_pos_weight)
