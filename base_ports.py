@@ -5,12 +5,12 @@ import pandas as pd
 import numpy as np
 import os
 
-FOLDER_WITH_DATA = 'historical_data'
-FOLDER_TO_SAVE = 'saved_data'
-FOLDER_WITH_IMG = 'saved_data/img/'
-
 
 class BasePortfolio:
+
+    FOLDER_WITH_DATA = 'historical_data'
+    FOLDER_TO_SAVE = 'saved_data'
+    FOLDER_WITH_IMG = 'saved_data/img/'
 
     # Field list
     __slots__ = [
@@ -102,7 +102,7 @@ class BasePortfolio:
     def download_data(self, reload_data: bool = False):
 
         for ticker in self.unique_tickers:
-            if os.path.isfile(os.path.join(FOLDER_WITH_DATA, ticker + '.csv')) is False or reload_data:
+            if os.path.isfile(os.path.join(self.FOLDER_WITH_DATA, ticker + '.csv')) is False or reload_data:
                 tl.download_yahoo(ticker)
 
     def find_oldest_newest_dates(self) -> (datetime, datetime):
@@ -162,7 +162,7 @@ class BasePortfolio:
         else:
             return 100 * self.commision
 
-    def calculate_capital_at_rebalance_day(self, port_name: str, day_number: int) -> float:
+    def calculate_capital_at_rebalance_day(self, day_number: int) -> float:
 
         data = self.all_tickers_data
         capital = self.strategy_data['Cash'][day_number - 1]
@@ -180,7 +180,7 @@ class BasePortfolio:
 
         return capital
 
-    def rebalance_commissions(self, capital: float, port_name: str, day_number: int):
+    def rebalance_commissions(self, capital: float, port_name: str, day_number: int) -> float:
 
         port_weights = self.portfolios[port_name]
         data = self.all_tickers_data
@@ -398,12 +398,12 @@ if __name__ == '__main__':
 
     df_yield_by_years = test_port.df_yield_std_by_every_year(df_strategy)
 
-    tl.plot_capital_plotly(FOLDER_WITH_IMG + 'Portfolio_Momentum',
+    tl.plot_capital_plotly(test_port.FOLDER_WITH_IMG + 'Portfolio_Momentum',
                            list(df_strategy.Date),
                            list(df_strategy.Capital),
                            df_yield_by_years,
                            portfolios)
 
-    tl.save_csv(FOLDER_TO_SAVE,
+    tl.save_csv(test_port.FOLDER_TO_SAVE,
                 f"InvestModel_EQ",
                 df_strategy)
