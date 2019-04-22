@@ -20,7 +20,8 @@ class BasePortfolio:
         'trading_days',
         'capital_not_placed',
         'max_position',
-        'current_port',
+        'new_port',
+        'old_port',
         'unique_tickers',
         'price',
 
@@ -74,7 +75,8 @@ class BasePortfolio:
         self.trading_days = []
         self.capital_not_placed = True
         self.max_position = 0
-        self.current_port = ''
+        self.new_port = ''
+        self.old_port = ''
         self.unique_tickers = {benchmark}
         self.price = 'Close' if trade_rebalance_at == 'close' else 'Open'
 
@@ -100,6 +102,12 @@ class BasePortfolio:
 
     # Junior functions for calculations -------------------------------------------------------------------------------
     def download_data(self, reload_data: bool = False):
+        """
+        Download tickers from Yahoo Finance if we don't have .csv file with this ticker name.
+
+        :param reload_data: Reload data for all tickers, even if they're already been downloaded
+        :return:
+        """
 
         for ticker in self.unique_tickers:
             if os.path.isfile(os.path.join(self.FOLDER_WITH_DATA, ticker + '.csv')) is False or reload_data:
@@ -166,7 +174,7 @@ class BasePortfolio:
 
         data = self.all_tickers_data
         capital = self.strategy_data['Cash'][day_number - 1]
-        for i in range(1, len(self.portfolios[self.current_port]) + 1):
+        for i in range(1, len(self.portfolios[self.old_port]) + 1):
             ticker = self.strategy_data['Ticker_' + str(i)][day_number - 1]
             capital += self.strategy_data['Shares_' + str(i)][day_number - 1] * data[ticker][self.price][day_number]
             self.div_storage.append(self.strategy_data['Shares_' + str(i)][day_number - 1] *
@@ -180,28 +188,28 @@ class BasePortfolio:
 
         return capital
 
-    def rebalance_commissions(self, capital: float, port_name: str, day_number: int) -> float:
+    def rebalance_commissions(self, capital: float, day_number: int) -> float:
 
-        port_weights = self.portfolios[port_name]
+        new_port_weights = self.portfolios[self.new_port]
         data = self.all_tickers_data
 
         # Commissions
         commissions = 0
         for i in range(1, self.max_position + 1):
             if self.strategy_data['Ticker_' + str(i)][day_number-1] != 0 and \
-                    self.strategy_data['Ticker_' + str(i)][day_number-1] in port_weights.keys():
+                    self.strategy_data['Ticker_' + str(i)][day_number-1] in new_port_weights.keys():
 
                 ticker = self.strategy_data['Ticker_' + str(i)][day_number-1]
-                required_shares = capital * port_weights[ticker] / data[ticker][self.price][day_number]
+                required_shares = capital * new_port_weights[ticker] / data[ticker][self.price][day_number]
                 share_difference = required_shares - self.strategy_data['Shares_' + str(i)][day_number-1]
                 commissions += self.trade_commiss(abs(share_difference))
 
             elif self.strategy_data['Ticker_' + str(i)][day_number-1] != 0:
                 commissions += self.trade_commiss(self.strategy_data['Shares_' + str(i)][day_number-1])
 
-        new_tickers = list(port_weights.keys() - self.portfolios[self.current_port].keys())
+        new_tickers = list(new_port_weights.keys() - self.portfolios[self.old_port].keys())
         for ticker in new_tickers:
-            new_shares = capital * port_weights[ticker] / data[ticker][self.price][day_number]
+            new_shares = capital * new_port_weights[ticker] / data[ticker][self.price][day_number]
             commissions += self.trade_commiss(new_shares)
 
         return commissions
@@ -287,12 +295,13 @@ class BasePortfolio:
         :return:
         """
 
+        self.new_port = next(iter(self.portfolios))
         if self.capital_not_placed:
-            self.dont_have_any_port(next(iter(self.portfolios)), day_number)
+            self.dont_have_any_port(day_number)
         else:
-            self.rebalance_port(next(iter(self.portfolios)), day_number)
+            self.rebalance_port(day_number)
 
-    def dont_have_any_port(self, port_name: str, day_number: int):
+    def dont_have_any_port(self, day_number: int):
         """
         If we need withdrawal or deposit - change start balance by 'self.value_withd_depo'. Calculate capital after
         commisions, after that calculate shares and write ticker, price. Dividend is equal zero, because we can't take
@@ -303,7 +312,7 @@ class BasePortfolio:
         :return:
         """
 
-        port_weights = self.portfolios[port_name]
+        port_weights = self.portfolios[self.new_port]
         data = self.all_tickers_data
         capital_after_trades = 0
         total_pos_weight = 0
@@ -325,9 +334,9 @@ class BasePortfolio:
         self.strategy_data['Cash'][day_number] = (1 - total_pos_weight) * self.balance_start
         self.strategy_data['Capital'][day_number] = capital_after_trades + self.strategy_data['Cash'][day_number]
         self.capital_not_placed = False
-        self.current_port = port_name
+        self.old_port = str(self.new_port)
 
-    def rebalance_port(self, port_name: str, day_number: int):
+    def rebalance_port(self, capital: float, day_number: int):
         """
         At first, calculate total capital include dividends, withdrawal or deposit and commissions after rebalance. Then
         change values in 'self.strategy_data' to new portfolio.
@@ -337,41 +346,38 @@ class BasePortfolio:
         :return:
         """
 
-        port_weights = self.portfolios[port_name]
+        new_port_weights = self.portfolios[self.new_port]
         data = self.all_tickers_data
-
-        capital = self.calculate_capital_at_rebalance_day(port_name, day_number)
-        capital = capital - self.rebalance_commissions(capital, port_name, day_number)
 
         # Change self.strategy_data
         total_pos_weight = 0
-        for i in range(1, len(port_weights.keys()) + 1):
-            ticker = list(port_weights.keys())[i-1]
+        for i in range(1, len(new_port_weights.keys()) + 1):
+            ticker = list(new_port_weights.keys())[i-1]
             self.strategy_data['Ticker_' + str(i)][day_number] = ticker
-            self.strategy_data['Shares_' + str(i)][day_number] = capital * port_weights[ticker] / data[ticker][self.price][day_number]
+            self.strategy_data['Shares_' + str(i)][day_number] = capital * new_port_weights[ticker] / \
+                                                                 data[ticker][self.price][day_number]
             self.strategy_data['Price_' + str(i)][day_number] = data[ticker][self.price][day_number]
-            total_pos_weight += port_weights[ticker]
+            total_pos_weight += new_port_weights[ticker]
 
         self.strategy_data['Cash'][day_number] = capital * (1 - total_pos_weight)
         self.strategy_data['Capital'][day_number] = capital
-        self.current_port = port_name
+        self.old_port = str(self.new_port)
         self.div_storage = []
 
     def typical_day(self, day_number: int):
 
         data = self.all_tickers_data
-        price = 'Close' if self.rebalance_at == 'close' else 'Open'
         capital = 0
 
-        for i in range(1, len(self.portfolios[self.current_port]) + 1):
+        for i in range(1, len(self.portfolios[self.old_port]) + 1):
             ticker = self.strategy_data['Ticker_' + str(i)][day_number-1]
             self.strategy_data['Ticker_' + str(i)][day_number] = self.strategy_data['Ticker_' + str(i)][day_number-1]
             self.strategy_data['Shares_' + str(i)][day_number] = self.strategy_data['Shares_' + str(i)][day_number-1]
             self.strategy_data['Dividend_' + str(i)][day_number] = data[ticker]['Dividend'][day_number]
-            self.strategy_data['Price_' + str(i)][day_number] = data[ticker][price][day_number]
+            self.strategy_data['Price_' + str(i)][day_number] = data[ticker][self.price][day_number]
             self.div_storage.append(self.strategy_data['Shares_' + str(i)][day_number] *
                                     data[ticker]['Dividend'][day_number] * self.div_tax)
-            capital += self.strategy_data['Shares_' + str(i)][day_number] * data[ticker][price][day_number]
+            capital += self.strategy_data['Shares_' + str(i)][day_number] * data[ticker][self.price][day_number]
 
         self.strategy_data['Cash'][day_number] = self.strategy_data['Cash'][day_number-1]
         self.strategy_data['Capital'][day_number] = capital + self.strategy_data['Cash'][day_number]

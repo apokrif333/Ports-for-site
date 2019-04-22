@@ -13,8 +13,11 @@ class TargetVolatility(base_ports.BasePortfolio):
         'vol_calc_range',
         'vol_target',
         'use_margin',
+        'vola_type',
+
         'cur_leverage',
-        'vola_type'
+        'on_capital',
+        'off_capital'
     ]
 
     def __init__(self,
@@ -74,7 +77,9 @@ class TargetVolatility(base_ports.BasePortfolio):
         )
 
         # Internals
-        self.cur_leverage= 0.0
+        self.cur_leverage = 0.0
+        self.on_capital = {}
+        self.off_capital = {}
 
         # Strategy parameters
         self.vol_calc_period = vol_calc_period
@@ -83,8 +88,9 @@ class TargetVolatility(base_ports.BasePortfolio):
         self.vola_type = vola_type
         self.use_margin = use_margin
 
-        assert self.vol_calc_period in ['day', 'month'], f"Incorrect value for 'vol_calc_period'"
-        assert self.vola_type in ['standart', 'modify'], f"Incorrect value for 'vola_type'"
+        assert self.rebalance in ['weekly', 'monthly'], "Incorrect value for 'rebalance'"
+        assert self.vol_calc_period in ['day', 'month'], "Incorrect value for 'vol_calc_period'"
+        assert self.vola_type in ['standard', 'modify'], "Incorrect value for 'vola_type'"
 
         self.portfolios['risk_on'] = self.portfolios.pop(next(iter(self.portfolios)))
         self.portfolios['risk_off'] = self.portfolios.pop(next(iter(self.portfolios)))
@@ -132,32 +138,32 @@ class TargetVolatility(base_ports.BasePortfolio):
 
         self.cur_leverage = min(vol_coff, 1) if self.use_margin is False else vol_coff
 
-    def calculate_capital_at_rebalance_day(self, day_number: int) -> (float, dict, dict):
+    def calculate_capital_at_rebalance_day(self, day_number: int) -> float:
 
         data = self.all_tickers_data
         strata = self.strategy_data
         capital = self.strategy_data['Cash'][day_number - 1]
-        on_capital, off_capital = {}, {}
+        self.on_capital, self.off_capital = {}, {}
 
         for ticker in self.portfolios['risk_on'].keys():
-            on_capital[ticker] = strata['On_Shares_' + ticker][day_number-1] * data[ticker][self.price][day_number]
+            self.on_capital[ticker] = strata['On_Shares_' + ticker][day_number-1] * data[ticker][self.price][day_number]
             self.div_storage.append(strata['On_Shares_' + ticker][day_number-1] * data[ticker]['Dividend'][day_number] *
                                     self.div_tax)
 
         for ticker in self.portfolios['risk_off'].keys():
-            off_capital[ticker] = strata['Off_Shares_' + ticker][day_number-1] * data[ticker][self.price][day_number]
+            self.off_capital[ticker] = strata['Off_Shares_' + ticker][day_number-1] * data[ticker][self.price][day_number]
             self.div_storage.append(strata['Off_Shares_' + ticker][day_number-1] * data[ticker]['Dividend'][day_number] *
                                     self.div_tax)
-        capital += sum(self.div_storage) + sum(on_capital.values()) + sum(off_capital.values())
+        capital += sum(self.div_storage) + sum(self.on_capital.values()) + sum(self.off_capital.values())
 
         # Withdrawal or deposit
         if self.withd_depo:
             strata['InOutCash'][day_number] = capital * (self.value_withd_depo / 100)
             capital = capital * (1 + self.value_withd_depo / 100)
 
-        return capital, on_capital, off_capital
+        return capital
 
-    def rebalance_commissions(self, capital: float, on_capital: dict, off_capital: dict, day_number: int) -> float:
+    def rebalance_commissions(self, capital: float, day_number: int) -> float:
 
         data = self.all_tickers_data
         strata = self.strategy_data
@@ -165,7 +171,7 @@ class TargetVolatility(base_ports.BasePortfolio):
         # Считаем комиссии риск-он
         commissions = 0
         for ticker in self.portfolios['risk_on'].keys():
-            old_leverage = on_capital[ticker] / capital
+            old_leverage = self.on_capital[ticker] / capital
             change_leverage = self.portfolios['risk_on'][ticker] * self.cur_leverage / old_leverage
             shares_for_trade = strata['On_Shares_' + ticker][day_number-1] * change_leverage - \
                                strata['On_Shares_' + ticker][day_number-1]
@@ -174,7 +180,7 @@ class TargetVolatility(base_ports.BasePortfolio):
         # Считаем комиссии риск-офф
         for ticker in self.portfolios['risk_off'].keys():
             risk_off_leverage = max(0, 1 - self.cur_leverage)
-            old_leverage = off_capital[ticker] / capital
+            old_leverage = self.off_capital[ticker] / capital
 
             if old_leverage == 0:
                 risk_off_capital = self.portfolios['risk_off'][ticker] * capital * risk_off_leverage
@@ -276,13 +282,13 @@ class TargetVolatility(base_ports.BasePortfolio):
         strata['Capital'][day_number] = cap_after_trades + strata['Cash'][day_number]
         self.capital_not_placed = False
 
-    def rebalance_port(self, day_number: int):
+    def rebalance_port(self, capital: float, day_number: int):
 
         data = self.all_tickers_data
         strata = self.strategy_data
 
-        capital, on_capital, off_capital = self.calculate_capital_at_rebalance_day(day_number)
-        capital = capital - self.rebalance_commissions(capital, on_capital, off_capital, day_number)
+        # capital, on_capital, off_capital = self.calculate_capital_at_rebalance_day(day_number)
+        # capital -= self.rebalance_commissions(capital, on_capital, off_capital, day_number)
 
         # Change self.strategy_data
         total_pos_weight = 0
