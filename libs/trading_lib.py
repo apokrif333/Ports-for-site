@@ -434,3 +434,122 @@ def plot_capital_plotly(chart_name: str, date: list, capital: list, show_table: 
         layout=plt_layout
     )
     plot(fig, show_link=False, filename=chart_name + '.html')
+
+
+def capital_chart_plotly(chart_name: str, date: list, capital: list):
+    trace1 = go.Scatter(
+        x=date,
+        y=capital,
+        mode='lines',
+        line=dict(color='#1f77b4'),
+        name='Port Capital'
+    )
+
+    plt_layout = go.Layout(
+        title=chart_name,
+        yaxis=dict(
+            title='Port Capital',
+            titlefont=dict(color='#1f77b4'),
+            tickfont=dict(color='#1f77b4'),
+            type='log',
+            autorange=True,
+        ),
+    )
+
+    fig = go.Figure(
+        data=[trace1],
+        layout=plt_layout
+    )
+    plot(fig, show_link=False, filename=chart_name + '_capital' + '.html')
+
+
+def drawdown_chart_plotly(chart_name: str, date: list, capital: list):
+    high = 0
+    down = []
+    for i in range(len(capital)):
+        if capital[i] > high:
+            high = capital[i]
+        down.append((capital[i] / high - 1) * -100)
+
+    trace1 = go.Scatter(
+        x=date,
+        y=down,
+        mode='lines',
+        line=dict(color='#1f77b4'),
+        name='Port DrawDown'
+    )
+
+    plt_layout = go.Layout(
+        title=chart_name,
+        yaxis=dict(
+            range=[0, 50],
+            title='DrawDown',
+            titlefont=dict(color='#1f77b4'),
+            tickfont=dict(color='#1f77b4'),
+        ),
+    )
+
+    fig = go.Figure(
+        data=[trace1],
+        layout=plt_layout
+    )
+    plot(fig, show_link=False, filename=chart_name + '_drawdown' + '.html')
+
+
+def portfolio_perform_table_plotly(chart_name: str, date: list, capital: list):
+    high = 0
+    down = []
+    for i in range(len(capital)):
+        if capital[i] > high:
+            high = capital[i]
+        down.append((capital[i] / high - 1) * -100)
+
+    names1, names2 = ['Start Balance', 'End Balance', 'CAGR', 'DrawDown'], ['StDev', 'Sharpe', 'MaR', 'SM']
+    values1, values2 = [], []
+    values1.append(capital[0])
+    values1.append(round(capital[-1], 0))
+    values1.append(cagr(date, capital))
+    values1.append(round(draw_down(capital), 2))
+    values2.append(round(st_dev(capital) * 100, 2))
+    values2.append(round(values1[2] / values2[0], 2))
+    values2.append(round(abs(values1[2] / values1[3]), 2))
+    values2.append(round(values2[1] * values2[2], 2))
+
+    trace1 = go.Table(
+        header=dict(
+            values=[['<b>NAMES</b>'], ['<b>VALUES</b>'],
+                    ['<b>NAMES</b>'], ['<b>VALUES</b>']],
+            fill=dict(color='gray'),
+            font=dict(color='white', size=12)
+        ),
+        cells=dict(
+            values=[names1, values1,
+                    names2, values2],
+            line=dict(color='#7D7F80'),
+            fill=dict(color=['wheat', 'white',
+                             'wheat', 'white']),
+            align=['left', 'center',
+                   'left', 'center']
+        )
+    )
+
+    fig = go.Figure(data=[trace1])
+    plot(fig, show_link=False, filename=chart_name + '_perform_table' + '.html')
+
+
+def portfolio_by_years_table_plotly(chart_name: str, show_table: pd.DataFrame,):
+        trace = go.Table(
+            header=dict(
+                values=show_table.columns,
+                font=dict(color='white', size=12),
+                fill=dict(color='gray'),
+            ),
+            cells=dict(
+                values=[show_table[c].tolist() for c in show_table.columns],
+                fill=dict(color=['palegreen', 'wheat', 'white',
+                                 'wheat', 'white']),
+            )
+        )
+
+        fig = go.Figure(data=[trace])
+        plot(fig, show_link=False, filename=chart_name + '_by_year' + '.html')

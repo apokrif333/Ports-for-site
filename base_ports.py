@@ -115,7 +115,7 @@ class BasePortfolio:
 
     def find_oldest_newest_dates(self) -> (datetime, datetime):
 
-        oldest_date = [self.date_start]
+        oldest_date = []
         newest_date = [self.date_end]
         for ticker in self.unique_tickers:
             self.all_tickers_data[ticker] = tl.load_csv(ticker)

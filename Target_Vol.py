@@ -112,7 +112,7 @@ class TargetVolatility(base_ports.BasePortfolio):
             start_index = day_number - self.vol_calc_range
 
         # Calculate capital, if port is not placed yet
-        if self.capital_not_placed or self.vola_type == 'standart':
+        if self.capital_not_placed or self.vola_type == 'standard':
             virtual_port = np.zeros(len(self.trading_days[start_index:day_number+1]))
 
             for ticker in self.portfolios['risk_on'].keys():
