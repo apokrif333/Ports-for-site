@@ -47,7 +47,7 @@ class BasePortfolio:
                  div_tax: float = 0.9,
                  commision: float = 0.0055,
                  balance_start: int = 10_000,
-                 date_start: datetime = datetime(2008, 1, 1),
+                 date_start: datetime = datetime(2007, 12, 31),
                  date_end: datetime = datetime.now(),
                  benchmark: str = 'QQQ',
                  withdraw_or_depo: bool = False,
@@ -61,7 +61,7 @@ class BasePortfolio:
         :param div_tax:
         :param commision: per one share
         :param balance_start:
-        :param date_start:
+        :param date_start: Important what month you're pointing out. The portfolio will be started at the end of the month.
         :param date_end:
         :param benchmark:
         :param withdraw_or_depo: have any withdrawal/deposit for the period specified in the 'rebalance'
@@ -163,6 +163,10 @@ class BasePortfolio:
 
         print(f"self.strategy_data columns: {list(self.strategy_data.keys())}")
 
+    def start_day_index(self) -> int:
+        first_trade_day = self.trading_days[self.trading_days >= self.date_start].iloc[0]
+        return list(self.trading_days).index(first_trade_day)
+
     def trade_commiss(self, shares: float) -> float:
 
         if shares >= 100.0:
@@ -229,78 +233,13 @@ class BasePortfolio:
 
         return worksheet.round(2)
 
+    def ports_tickers(self) -> set:
+        ports_tickers = set()
+        for port in self.portfolios.keys():
+            ports_tickers.update(set(self.portfolios[port].keys()))
+        return ports_tickers
+
     # Logical chain of functions --------------------------------------------------------------------------------------
-    def iterate_trading_days(self):
-        """
-        Check whether you need to do something on a given day or is it a typical day
-
-        :return:
-        """
-
-        for day_number in range(len(self.trading_days)):
-
-            if self.rebalance_at == 'close':
-
-                if day_number != len(self.trading_days) - 1:
-
-                    if self.rebalance == 'monthly' and self.trading_days[day_number].month != \
-                            self.trading_days[day_number+1].month:
-                        self.change_port(day_number)
-
-                    elif self.rebalance == 'quarterly' and self.trading_days[day_number].month in (3, 6, 9, 12) and \
-                            self.trading_days[day_number+1].month in (4, 7, 10, 1):
-                        self.change_port(day_number)
-
-                    elif self.rebalance == 'annual' and self.trading_days[day_number].year != \
-                            self.trading_days[day_number+1].year:
-                        self.change_port(day_number)
-
-                    elif self.capital_not_placed is False:
-                        self.typical_day(day_number)
-
-                elif self.forsed_rebalance:
-                    self.change_port(day_number)
-
-                elif self.capital_not_placed is False:
-                    self.typical_day(day_number)
-
-            elif self.rebalance_at == 'open':
-
-                if day_number != 0:
-
-                    if self.rebalance == 'monthly' and self.trading_days[day_number-1].month != \
-                            self.trading_days[day_number].month:
-                        self.change_port(day_number)
-
-                    elif self.rebalance == 'quarterly' and self.trading_days[day_number-1].month in (3, 6, 9, 12) and \
-                            self.trading_days[day_number].month in (4, 7, 10, 1):
-                        self.change_port(day_number)
-
-                    elif self.rebalance == 'annual' and self.trading_days[day_number-1].year != \
-                            self.trading_days[day_number].year:
-                        self.change_port(day_number)
-
-                    elif day_number == len(self.trading_days) - 1 and self.forsed_rebalance:
-                        self.change_port(day_number)
-
-                    elif self.capital_not_placed is False:
-                        self.typical_day(day_number)
-
-    def change_port(self, day_number: int):
-        """
-        Checking how we need to rebalance or, if the portfolio does not yet exist, what composition to take it with.
-        If there are many portfolios, then there is a check which one is suitable.
-
-        :param day_number:
-        :return:
-        """
-
-        self.new_port = next(iter(self.portfolios))
-        if self.capital_not_placed:
-            self.dont_have_any_port(day_number)
-        else:
-            self.rebalance_port(day_number)
-
     def dont_have_any_port(self, day_number: int):
         """
         If we need withdrawal or deposit - change start balance by 'self.value_withd_depo'. Calculate capital after
@@ -383,19 +322,82 @@ class BasePortfolio:
         self.strategy_data['Capital'][day_number] = capital + self.strategy_data['Cash'][day_number]
 
 
+def working_with_capital(day_number):
+    if test_port.capital_not_placed:
+        test_port.dont_have_any_port(day_number)
+    else:
+        capital = test_port.calculate_capital_at_rebalance_day(day_number)
+        capital -= test_port.rebalance_commissions(capital, day_number)
+        test_port.rebalance_port(capital, day_number)
+
+
 if __name__ == '__main__':
     portfolios = {'Port_1':
-                      {'SPY': .5, 'DIA': .5},
+                      {'SPY': .5, 'TLT': .5},
                   }
     test_port = BasePortfolio(portfolios=portfolios,
                               balance_start=100_000,
-                              date_start=datetime(1999, 12, 1),
-                              rebalance='quarterly',
-                              trade_rebalance_at='close')
-    test_port.get_data()
-    test_port.create_columns_for_strategy_dict()
-    test_port.iterate_trading_days()
+                              date_start=datetime(2007, 12, 31))
 
+    # Указываем, какой порт анализировать
+    test_port.new_port = next(iter(portfolios))
+
+    # Preprocessing data
+    test_port.download_data()
+    start_date, end_date = test_port.find_oldest_newest_dates()
+    test_port.cut_data_by_dates(start_date, end_date)
+    test_port.create_columns_for_strategy_dict()
+
+    # Iterate_trading_days
+    start_index = test_port.start_day_index()
+    for day_number in range(start_index, len(test_port.trading_days)):
+
+        if test_port.rebalance_at == 'close':
+
+            if day_number != len(test_port.trading_days) - 1:
+
+                if test_port.rebalance == 'monthly' and test_port.trading_days[day_number].month != \
+                        test_port.trading_days[day_number + 1].month:
+                    working_with_capital(day_number)
+
+                elif test_port.rebalance == 'quarterly' and test_port.trading_days[day_number].month in (3, 6, 9, 12) and \
+                        test_port.trading_days[day_number + 1].month in (4, 7, 10, 1):
+                    working_with_capital(day_number)
+
+                elif test_port.rebalance == 'annual' and test_port.trading_days[day_number].year != \
+                        test_port.trading_days[day_number + 1].year:
+                    working_with_capital(day_number)
+
+                elif test_port.capital_not_placed is False:
+                    test_port.typical_day(day_number)
+
+            elif test_port.forsed_rebalance:
+                working_with_capital(day_number)
+
+            elif test_port.capital_not_placed is False:
+                test_port.typical_day(day_number)
+
+        elif test_port.rebalance_at == 'open':
+
+            if day_number != 0:
+
+                if test_port.rebalance == 'monthly' and test_port.trading_days[day_number - 1].month != \
+                        test_port.trading_days[day_number].month:
+                    working_with_capital(day_number)
+
+                elif test_port.rebalance == 'quarterly' and test_port.trading_days[day_number - 1].month in (3, 6, 9, 12) and \
+                        test_port.trading_days[day_number].month in (4, 7, 10, 1):
+                    working_with_capital(day_number)
+
+                elif test_port.rebalance == 'annual' and test_port.trading_days[day_number - 1].year != \
+                        test_port.trading_days[day_number].year:
+                    working_with_capital(day_number)
+
+                elif day_number == len(test_port.trading_days) - 1 and test_port.forsed_rebalance:
+                    working_with_capital(day_number)
+
+                elif test_port.capital_not_placed is False:
+                    test_port.typical_day(day_number)
 
     # Transform data
     df_strategy = pd.DataFrame.from_dict(test_port.strategy_data)
@@ -404,12 +406,16 @@ if __name__ == '__main__':
 
     df_yield_by_years = test_port.df_yield_std_by_every_year(df_strategy)
 
-    tl.plot_capital_plotly(test_port.FOLDER_WITH_IMG + 'Portfolio_Momentum',
+    chart_name = 'PassivePort ' + \
+                 '(' + test_port.rebalance + ') ' + \
+                 '(' + 'by ' + test_port.rebalance_at + ') '
+
+    tl.plot_capital_plotly(test_port.FOLDER_WITH_IMG + chart_name,
                            list(df_strategy.Date),
                            list(df_strategy.Capital),
                            df_yield_by_years,
                            portfolios)
 
     tl.save_csv(test_port.FOLDER_TO_SAVE,
-                f"InvestModel_EQ",
+                chart_name + str(test_port.ports_tickers()),
                 df_strategy)

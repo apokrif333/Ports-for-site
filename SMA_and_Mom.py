@@ -3,7 +3,6 @@ from dateutil.relativedelta import relativedelta as rdelta
 from libs import trading_lib as tl
 
 import base_ports
-import numpy as np
 import pandas as pd
 
 
@@ -24,7 +23,7 @@ class SMAandMomentum(base_ports.BasePortfolio):
                  div_tax: float = 0.9,
                  commision: float = 0.0055,
                  balance_start: int = 10_000,
-                 date_start: datetime = datetime(2008, 1, 1),
+                 date_start: datetime = datetime(2007, 12, 31),
                  date_end: datetime = datetime.now(),
                  benchmark: str = 'QQQ',
                  withdraw_or_depo: bool = False,
@@ -43,7 +42,7 @@ class SMAandMomentum(base_ports.BasePortfolio):
         :param div_tax:
         :param commision: per one share
         :param balance_start:
-        :param date_start:
+        :param date_start: Important what month you're pointing out. The portfolio will be started at the end of the month.
         :param date_end:
         :param benchmark:
         :param withdraw_or_depo: have any withdrawal/deposit for the period specified in the 'rebalance'
@@ -140,6 +139,9 @@ class SMAandMomentum(base_ports.BasePortfolio):
     # Logical chain of functions --------------------------------------------------------------------------------------
     def what_port_need_now(self, day_number: int):
 
+        # Если нужно получить сигналы по close, но рассчитать цены по open
+        # day_number -= 1
+
         data = self.all_tickers_data
         stocks_price = data[self.signal_stocks][self.price][day_number]
         stocks_sma = data[self.signal_stocks]['SMA_' + str(self.sma_period)][day_number]
@@ -148,7 +150,7 @@ class SMAandMomentum(base_ports.BasePortfolio):
 
         if stocks_sma == 0 or stocks_mom == 0 or bonds_mom == 0:
             print(f"Skip {self.trading_days[day_number]} because don't have momentum or sma on this date")
-            return
+            return True
 
         # High_Risk
         if stocks_price > stocks_sma and stocks_mom >= 1 > bonds_mom:
@@ -170,6 +172,16 @@ class SMAandMomentum(base_ports.BasePortfolio):
             print(f"{self.trading_days[day_number]} date does not fall under the rebalance conditions")
 
 
+def working_with_capital(day_number):
+    no_data = test_port.what_port_need_now(day_number)
+    if test_port.capital_not_placed and no_data is not True:
+        test_port.dont_have_any_port(day_number)
+    else:
+        capital = test_port.calculate_capital_at_rebalance_day(day_number)
+        capital -= test_port.rebalance_commissions(capital, day_number)
+        test_port.rebalance_port(capital, day_number)
+
+
 if __name__ == "__main__":
     portfolios = {
         'high_risk':
@@ -181,7 +193,9 @@ if __name__ == "__main__":
         'high_save':
             {'TLT': .8, 'GLD': .2}
     }
-    test_port = SMAandMomentum(portfolios=portfolios)
+    test_port = SMAandMomentum(portfolios=portfolios,
+                               rebalance='monthly',
+                               trade_rebalance_at='close')
 
     # Preprocessing data
     test_port.download_data()
@@ -193,35 +207,30 @@ if __name__ == "__main__":
     test_port.create_columns_for_strategy_dict()
 
     # Iterate_trading_days
-    for day_number in range(len(test_port.trading_days)):
+    start_index = test_port.start_day_index()
+    for day_number in range(start_index, len(test_port.trading_days)):
+
         if test_port.rebalance_at == 'close':
 
             if day_number != len(test_port.trading_days) - 1:
 
                 if test_port.rebalance == 'monthly' and test_port.trading_days[day_number].month != \
                         test_port.trading_days[day_number + 1].month:
-                    test_port.what_port_need_now(day_number)
-                    if test_port.capital_not_placed:
-                        test_port.dont_have_any_port(day_number)
-                    else:
-                        capital = test_port.calculate_capital_at_rebalance_day(day_number)
-
-                        capital -= test_port.rebalance_commissions(capital, day_number)
-                        test_port.rebalance_port(capital, day_number)
+                    working_with_capital(day_number)
 
                 elif test_port.rebalance == 'quarterly' and test_port.trading_days[day_number].month in (3, 6, 9, 12) and \
                         test_port.trading_days[day_number + 1].month in (4, 7, 10, 1):
-                    test_port.change_port(day_number)
+                    working_with_capital(day_number)
 
                 elif test_port.rebalance == 'annual' and test_port.trading_days[day_number].year != \
                         test_port.trading_days[day_number + 1].year:
-                    test_port.change_port(day_number)
+                    working_with_capital(day_number)
 
                 elif test_port.capital_not_placed is False:
                     test_port.typical_day(day_number)
 
             elif test_port.forsed_rebalance:
-                test_port.change_port(day_number)
+                working_with_capital(day_number)
 
             elif test_port.capital_not_placed is False:
                 test_port.typical_day(day_number)
@@ -232,18 +241,18 @@ if __name__ == "__main__":
 
                 if test_port.rebalance == 'monthly' and test_port.trading_days[day_number - 1].month != \
                         test_port.trading_days[day_number].month:
-                    test_port.change_port(day_number)
+                    working_with_capital(day_number)
 
                 elif test_port.rebalance == 'quarterly' and test_port.trading_days[day_number - 1].month in (3, 6, 9, 12) and \
                         test_port.trading_days[day_number].month in (4, 7, 10, 1):
-                    test_port.change_port(day_number)
+                    working_with_capital(day_number)
 
                 elif test_port.rebalance == 'annual' and test_port.trading_days[day_number - 1].year != \
                         test_port.trading_days[day_number].year:
-                    test_port.change_port(day_number)
+                    working_with_capital(day_number)
 
                 elif day_number == len(test_port.trading_days) - 1 and test_port.forsed_rebalance:
-                    test_port.change_port(day_number)
+                    working_with_capital(day_number)
 
                 elif test_port.capital_not_placed is False:
                     test_port.typical_day(day_number)
@@ -255,12 +264,19 @@ if __name__ == "__main__":
 
     df_yield_by_years = test_port.df_yield_std_by_every_year(df_strategy)
 
-    tl.plot_capital_plotly(test_port.FOLDER_WITH_IMG + 'Portfolio_Momentum',
+    chart_name = 'SmaMomentumPort ' + \
+                 '(' + test_port.rebalance + ') ' + \
+                 '(' + 'by ' + test_port.rebalance_at + ') ' + \
+                 '(' + f"Signals {test_port.signal_stocks} {test_port.signal_bonds}" + ') ' + \
+                 '(' + f"Mom {test_port.momentum_stocks} {test_port.momentum_bonds}" + ') ' + \
+                 '(' + f"SMA {test_port.sma_period}" + ') '
+
+    tl.plot_capital_plotly(test_port.FOLDER_WITH_IMG + chart_name,
                            list(df_strategy.Date),
                            list(df_strategy.Capital),
                            df_yield_by_years,
                            portfolios)
 
     tl.save_csv(test_port.FOLDER_TO_SAVE,
-                f"InvestModel_EQ",
+                chart_name + str(test_port.ports_tickers()),
                 df_strategy)

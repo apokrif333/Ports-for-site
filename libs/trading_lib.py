@@ -6,6 +6,7 @@ import math
 import time
 import cmath
 import os
+import re
 import matplotlib.pyplot as plt
 
 from alpha_vantage.timeseries import TimeSeries
@@ -320,6 +321,7 @@ def plot_capital(date: list, capital: list):
     plt.show()
 
 
+# Выводим тотал-график капитала с таблицами в плотли
 def plot_capital_plotly(chart_name: str, date: list, capital: list, show_table: pd.DataFrame, ports: dict):
     high = 0
     down = []
@@ -410,7 +412,7 @@ def plot_capital_plotly(chart_name: str, date: list, capital: list, show_table: 
     plt_data = [trace1, trace2, trace3, trace4, trace5]
 
     plt_layout = go.Layout(
-        title=chart_name,
+        title=chart_name.split('/')[-1],
         yaxis=dict(
             title='Port Capital',
             titlefont=dict(color='#1f77b4'),
@@ -436,6 +438,7 @@ def plot_capital_plotly(chart_name: str, date: list, capital: list, show_table: 
     plot(fig, show_link=False, filename=chart_name + '.html')
 
 
+# Выводим динамику эквити в плотли
 def capital_chart_plotly(chart_name: str, date: list, capital: list):
     trace1 = go.Scatter(
         x=date,
@@ -463,6 +466,7 @@ def capital_chart_plotly(chart_name: str, date: list, capital: list):
     plot(fig, show_link=False, filename=chart_name + '_capital' + '.html')
 
 
+# Выводим динамику просадок в плотли
 def drawdown_chart_plotly(chart_name: str, date: list, capital: list):
     high = 0
     down = []
@@ -496,6 +500,7 @@ def drawdown_chart_plotly(chart_name: str, date: list, capital: list):
     plot(fig, show_link=False, filename=chart_name + '_drawdown' + '.html')
 
 
+# Выводим таблицу с показателями в плотли
 def portfolio_perform_table_plotly(chart_name: str, date: list, capital: list):
     high = 0
     down = []
@@ -537,6 +542,7 @@ def portfolio_perform_table_plotly(chart_name: str, date: list, capital: list):
     plot(fig, show_link=False, filename=chart_name + '_perform_table' + '.html')
 
 
+# Выводим таблицу с показателями по годам, по сравнению с бенчем в плотли
 def portfolio_by_years_table_plotly(chart_name: str, show_table: pd.DataFrame,):
         trace = go.Table(
             header=dict(
