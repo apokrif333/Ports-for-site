@@ -41,14 +41,14 @@ class TargetVolatility(base_ports.BasePortfolio):
 
         """
 
-        :param portfolios: {'RISK_ON': {'ticker_1': share, 'ticker_N': share}, 'RISK_OFF': {'ticker_N': share}}
+        :param portfolios: {'risk_on': {'ticker_1': share, 'ticker_N': share}, 'risk_off': {'ticker_N': share}}. Portfolios names: 'risk_on', 'risk_off'
         :param rebalance: 'weekly', 'monthly'
         :param trade_rebalance_at: 'open': at next open, 'close': at current close
         :param forsed_rebalance: on the last available trading day, there will be a rebalancing. 'trade_rebalance_at' automatically becomes 'close'
         :param div_tax:
         :param commision: per one share
         :param balance_start:
-        :param date_start:
+        :param date_start: Important what month you're pointing out. The portfolio will be started at the end of the month.
         :param date_end:
         :param benchmark:
         :param withdraw_or_depo: have any withdrawal/deposit for the period specified in the 'rebalance'
@@ -88,15 +88,34 @@ class TargetVolatility(base_ports.BasePortfolio):
         self.vola_type = vola_type
         self.use_margin = use_margin
 
-        assert self.rebalance in ['weekly', 'monthly'], "Incorrect value for 'rebalance'"
-        assert self.vol_calc_period in ['day', 'month'], "Incorrect value for 'vol_calc_period'"
-        assert self.vola_type in ['standard', 'modify'], "Incorrect value for 'vola_type'"
+        assert self.rebalance in ['weekly', 'monthly', 'quarterly', 'annual'], \
+            "Incorrect value for 'rebalance'"
+        assert self.vol_calc_period in ['day', 'month'], \
+            "Incorrect value for 'vol_calc_period'"
+        assert self.vola_type in ['standard', 'modify'], \
+            "Incorrect value for 'vola_type'"
+        if self.rebalance == 'weekly' and self.vol_calc_period != 'day':
+            raise ValueError("For weekly rebalance, please, use day calc period")
 
-        self.portfolios['risk_on'] = self.portfolios.pop(next(iter(self.portfolios)))
-        self.portfolios['risk_off'] = self.portfolios.pop(next(iter(self.portfolios)))
+        for port_name in portfolios.keys():
+            assert port_name in ['risk_on', 'risk_off'], \
+                f"Incorrect value in portfolios names - {port_name}"
 
     # Junior functions for calculations -------------------------------------------------------------------------------
+    def data_sufficiency_check(self, start_index: int):
+
+        for index in range(start_index, len(self.trading_days)):
+            if self.vol_calc_period == 'month' and \
+                    (self.trading_days[index] - rdelta(months=self.vol_calc_range) >= self.trading_days[0]):
+                break
+            elif self.vol_calc_period == 'day' and len(self.trading_days[:index+1]) >= self.vol_calc_range:
+                break
+        return index
+
     def calculate_current_vol(self, day_number: int):
+
+        if self.rebalance_at == 'open':
+            day_number -= 1
 
         data = self.all_tickers_data
         strata = self.strategy_data
@@ -107,11 +126,10 @@ class TargetVolatility(base_ports.BasePortfolio):
             start_date = self.trading_days[
                 (self.trading_days.dt.year == start_date.year) & (self.trading_days.dt.month == start_date.month)].iloc[-1]
             start_index = list(self.trading_days).index(start_date)
-
         else:
             start_index = day_number - self.vol_calc_range
 
-        # Calculate capital, if port is not placed yet
+        # Calculate capital, if port is not placed yet or we calc standard volatility type
         if self.capital_not_placed or self.vola_type == 'standard':
             virtual_port = np.zeros(len(self.trading_days[start_index:day_number+1]))
 
@@ -120,7 +138,7 @@ class TargetVolatility(base_ports.BasePortfolio):
                 prices = ticker_data[start_index:day_number+1][self.price]
                 virtual_port += np.array(prices) * self.portfolios['risk_on'][ticker]
 
-        # Calculate capital, if we already have port
+        # Calculate modify volatility type
         else:
             total_cap = 0
 
@@ -203,13 +221,11 @@ class TargetVolatility(base_ports.BasePortfolio):
 
         self.strategy_data['Date'] = self.trading_days
         for t in self.portfolios['risk_on'].keys():
-            self.strategy_data['On_Ticker_' + t] = [0] * number_of_rows
             self.strategy_data['On_Price_' + t] = self.all_tickers_data[t][self.price]
             self.strategy_data['On_Shares_' + t] = [0] * number_of_rows
             self.strategy_data['On_Dividend_' + t] = self.all_tickers_data[t]['Dividend']
 
         for t in self.portfolios['risk_off'].keys():
-            self.strategy_data['Off_Ticker_' + t] = [0] * number_of_rows
             self.strategy_data['Off_Price_' + t] = self.all_tickers_data[t][self.price]
             self.strategy_data['Off_Shares_' + t] = [0] * number_of_rows
             self.strategy_data['Off_Dividend_' + t] = self.all_tickers_data[t]['Dividend']
@@ -218,26 +234,6 @@ class TargetVolatility(base_ports.BasePortfolio):
         self.strategy_data['InOutCash'] = [0] * number_of_rows
 
         print(f"self.strategy_data columns: {list(self.strategy_data.keys())}")
-
-    def change_port(self, day_number: int):
-
-        if self.capital_not_placed:
-
-            if self.vol_calc_period == 'month' and \
-                    (self.trading_days[day_number] - rdelta(months=self.vol_calc_range) >= self.trading_days[0]):
-                self.calculate_current_vol(day_number)
-                self.dont_have_any_port(day_number)
-
-            elif self.vol_calc_period == 'day' and len(self.trading_days[:day_number+1]) >= self.vol_calc_range:
-                self.calculate_current_vol(day_number)
-                self.dont_have_any_port(day_number)
-
-            else:
-                return
-
-        else:
-            self.calculate_current_vol(day_number)
-            self.rebalance_port(day_number)
 
     def dont_have_any_port(self, day_number: int):
         """
@@ -287,9 +283,6 @@ class TargetVolatility(base_ports.BasePortfolio):
         data = self.all_tickers_data
         strata = self.strategy_data
 
-        # capital, on_capital, off_capital = self.calculate_capital_at_rebalance_day(day_number)
-        # capital -= self.rebalance_commissions(capital, on_capital, off_capital, day_number)
-
         # Change self.strategy_data
         total_pos_weight = 0
 
@@ -330,16 +323,17 @@ class TargetVolatility(base_ports.BasePortfolio):
         strata['Capital'][day_number] = capital + strata['Cash'][day_number]
 
 
-if __name__ == "__main__":
-    portfolios = {'Risk_On':
-                      {'SPY': .4, 'DIA': .6},
-                  'Risk_Off':
-                      {'TLT': 1.0}
-                  }
-    test_port = TargetVolatility(portfolios=portfolios,
-                                 date_start=datetime(2007, 11, 10),
-                                 vol_target=9.0)
+def working_with_capital(test_port, day_number: int):
+    test_port.calculate_current_vol(day_number)
+    if test_port.capital_not_placed:
+        test_port.dont_have_any_port(day_number)
+    else:
+        capital = test_port.calculate_capital_at_rebalance_day(day_number)
+        capital -= test_port.rebalance_commissions(capital, day_number)
+        test_port.rebalance_port(capital, day_number)
 
+
+def start(test_port) -> (pd.DataFrame, pd.DataFrame, str):
     # Preprocessing data
     test_port.download_data()
     start_date, end_date = test_port.find_oldest_newest_dates()
@@ -347,29 +341,36 @@ if __name__ == "__main__":
     test_port.create_columns_for_strategy_dict()
 
     # Iterate_trading_days
-    for day_number in range(len(test_port.trading_days)):
+    start_index = test_port.start_day_index()
+    start_index = test_port.data_sufficiency_check(start_index)
+    for day_number in range(start_index, len(test_port.trading_days)):
 
         if test_port.rebalance_at == 'close':
 
             if day_number != len(test_port.trading_days) - 1:
 
-                if test_port.rebalance == 'monthly' and test_port.trading_days[day_number].month != \
-                        test_port.trading_days[day_number + 1].month:
-                    test_port.change_port(day_number)
+                if test_port.rebalance == 'weekly' and abs(test_port.trading_days[day_number].weekday() -
+                                                           test_port.trading_days[day_number + 1].weekday()) > 2:
+                    working_with_capital(test_port, day_number)
 
-                elif test_port.rebalance == 'quarterly' and test_port.trading_days[day_number].month in (3, 6, 9, 12) and \
+                elif test_port.rebalance == 'monthly' and test_port.trading_days[day_number].month != \
+                        test_port.trading_days[day_number + 1].month:
+                    working_with_capital(test_port, day_number)
+
+                elif test_port.rebalance == 'quarterly' and test_port.trading_days[day_number].month in (
+                3, 6, 9, 12) and \
                         test_port.trading_days[day_number + 1].month in (4, 7, 10, 1):
-                    test_port.change_port(day_number)
+                    working_with_capital(test_port, day_number)
 
                 elif test_port.rebalance == 'annual' and test_port.trading_days[day_number].year != \
                         test_port.trading_days[day_number + 1].year:
-                    test_port.change_port(day_number)
+                    working_with_capital(test_port, day_number)
 
                 elif test_port.capital_not_placed is False:
                     test_port.typical_day(day_number)
 
             elif test_port.forsed_rebalance:
-                test_port.change_port(day_number)
+                working_with_capital(test_port, day_number)
 
             elif test_port.capital_not_placed is False:
                 test_port.typical_day(day_number)
@@ -378,20 +379,25 @@ if __name__ == "__main__":
 
             if day_number != 0:
 
-                if test_port.rebalance == 'monthly' and test_port.trading_days[day_number - 1].month != \
-                        test_port.trading_days[day_number].month:
-                    test_port.change_port(day_number)
+                if test_port.rebalance == 'weekly' and abs(test_port.trading_days[day_number - 1].weekday() -
+                                                           test_port.trading_days[day_number].weekday()) > 2:
+                    working_with_capital(test_port, day_number)
 
-                elif test_port.rebalance == 'quarterly' and test_port.trading_days[day_number - 1].month in (3, 6, 9, 12) and \
+                elif test_port.rebalance == 'monthly' and test_port.trading_days[day_number - 1].month != \
+                        test_port.trading_days[day_number].month:
+                    working_with_capital(test_port, day_number)
+
+                elif test_port.rebalance == 'quarterly' and test_port.trading_days[day_number - 1].month in (
+                3, 6, 9, 12) and \
                         test_port.trading_days[day_number].month in (4, 7, 10, 1):
-                    test_port.change_port(day_number)
+                    working_with_capital(test_port, day_number)
 
                 elif test_port.rebalance == 'annual' and test_port.trading_days[day_number - 1].year != \
                         test_port.trading_days[day_number].year:
-                    test_port.change_port(day_number)
+                    working_with_capital(test_port, day_number)
 
                 elif day_number == len(test_port.trading_days) - 1 and test_port.forsed_rebalance:
-                    test_port.change_port(day_number)
+                    working_with_capital(test_port, day_number)
 
                 elif test_port.capital_not_placed is False:
                     test_port.typical_day(day_number)
@@ -403,12 +409,37 @@ if __name__ == "__main__":
 
     df_yield_by_years = test_port.df_yield_std_by_every_year(df_strategy)
 
-    tl.plot_capital_plotly(test_port.FOLDER_WITH_IMG + 'Portfolio_Momentum',
+    chart_name = 'TargetVolPort ' + \
+                 '(' + test_port.rebalance + ') ' + \
+                 '(' + 'by ' + test_port.rebalance_at + ') ' + \
+                 '(' + f"VolTarget {test_port.vol_target}" + ') ' + \
+                 '(' + f"Period_Range {test_port.vol_calc_period} {test_port.vol_calc_range}" + ') ' + \
+                 '(' + f"Type_Leverage {test_port.vola_type} {test_port.use_margin}" + ') '
+
+    return df_strategy, df_yield_by_years, chart_name
+
+
+if __name__ == "__main__":
+    portfolios = {'risk_on':
+                      {'DIA': 1.0},
+                  'risk_off':
+                      {'TLT': 1.0}
+                  }
+    test_port = TargetVolatility(portfolios=portfolios,
+                                 date_start=datetime(2007, 12, 20),
+                                 vol_target=9.0,
+                                 rebalance='monthly',
+                                 vol_calc_period='day',
+                                 vol_calc_range=15)
+
+    df_strategy, df_yield_by_years, chart_name = start(test_port)
+
+    tl.plot_capital_plotly(test_port.FOLDER_WITH_IMG + chart_name,
                            list(df_strategy.Date),
                            list(df_strategy.Capital),
                            df_yield_by_years,
                            portfolios)
 
     tl.save_csv(test_port.FOLDER_TO_SAVE,
-                f"InvestModel_EQ",
+                chart_name + str(test_port.ports_tickers()),
                 df_strategy)

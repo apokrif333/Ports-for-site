@@ -94,7 +94,7 @@ class BasePortfolio:
         self.withd_depo = withdraw_or_depo
         self.value_withd_depo = value_withdraw_or_depo
 
-        assert self.rebalance in ['monthly', 'quarterly', 'annual'], f"Incorrect value for 'rebalance'"
+        assert self.rebalance in ['weekly', 'monthly', 'quarterly', 'annual'], f"Incorrect value for 'rebalance'"
         assert self.rebalance_at in ['open', 'close'], f"Incorrect value for 'rebalance_at'"
 
         for portfolio in self.portfolios.items():
@@ -322,7 +322,7 @@ class BasePortfolio:
         self.strategy_data['Capital'][day_number] = capital + self.strategy_data['Cash'][day_number]
 
 
-def working_with_capital(day_number):
+def working_with_capital(test_port, day_number):
     if test_port.capital_not_placed:
         test_port.dont_have_any_port(day_number)
     else:
@@ -331,16 +331,9 @@ def working_with_capital(day_number):
         test_port.rebalance_port(capital, day_number)
 
 
-if __name__ == '__main__':
-    portfolios = {'Port_1':
-                      {'SPY': .5, 'TLT': .5},
-                  }
-    test_port = BasePortfolio(portfolios=portfolios,
-                              balance_start=100_000,
-                              date_start=datetime(2007, 12, 31))
-
+def start(test_port) -> (pd.DataFrame, pd.DataFrame, str):
     # Указываем, какой порт анализировать
-    test_port.new_port = next(iter(portfolios))
+    test_port.new_port = next(iter(test_port.portfolios))
 
     # Preprocessing data
     test_port.download_data()
@@ -358,21 +351,22 @@ if __name__ == '__main__':
 
                 if test_port.rebalance == 'monthly' and test_port.trading_days[day_number].month != \
                         test_port.trading_days[day_number + 1].month:
-                    working_with_capital(day_number)
+                    working_with_capital(test_port, day_number)
 
-                elif test_port.rebalance == 'quarterly' and test_port.trading_days[day_number].month in (3, 6, 9, 12) and \
+                elif test_port.rebalance == 'quarterly' and test_port.trading_days[day_number].month in (
+                3, 6, 9, 12) and \
                         test_port.trading_days[day_number + 1].month in (4, 7, 10, 1):
-                    working_with_capital(day_number)
+                    working_with_capital(test_port, day_number)
 
                 elif test_port.rebalance == 'annual' and test_port.trading_days[day_number].year != \
                         test_port.trading_days[day_number + 1].year:
-                    working_with_capital(day_number)
+                    working_with_capital(test_port, day_number)
 
                 elif test_port.capital_not_placed is False:
                     test_port.typical_day(day_number)
 
             elif test_port.forsed_rebalance:
-                working_with_capital(day_number)
+                working_with_capital(test_port, day_number)
 
             elif test_port.capital_not_placed is False:
                 test_port.typical_day(day_number)
@@ -383,18 +377,19 @@ if __name__ == '__main__':
 
                 if test_port.rebalance == 'monthly' and test_port.trading_days[day_number - 1].month != \
                         test_port.trading_days[day_number].month:
-                    working_with_capital(day_number)
+                    working_with_capital(test_port, day_number)
 
-                elif test_port.rebalance == 'quarterly' and test_port.trading_days[day_number - 1].month in (3, 6, 9, 12) and \
+                elif test_port.rebalance == 'quarterly' and test_port.trading_days[day_number - 1].month in (
+                3, 6, 9, 12) and \
                         test_port.trading_days[day_number].month in (4, 7, 10, 1):
-                    working_with_capital(day_number)
+                    working_with_capital(test_port, day_number)
 
                 elif test_port.rebalance == 'annual' and test_port.trading_days[day_number - 1].year != \
                         test_port.trading_days[day_number].year:
-                    working_with_capital(day_number)
+                    working_with_capital(test_port, day_number)
 
                 elif day_number == len(test_port.trading_days) - 1 and test_port.forsed_rebalance:
-                    working_with_capital(day_number)
+                    working_with_capital(test_port, day_number)
 
                 elif test_port.capital_not_placed is False:
                     test_port.typical_day(day_number)
@@ -409,6 +404,19 @@ if __name__ == '__main__':
     chart_name = 'PassivePort ' + \
                  '(' + test_port.rebalance + ') ' + \
                  '(' + 'by ' + test_port.rebalance_at + ') '
+
+    return df_strategy, df_yield_by_years, chart_name
+
+
+if __name__ == '__main__':
+    portfolios = {'Port_1':
+                      {'SPY': .5, 'TLT': .5},
+                  }
+    test_port = BasePortfolio(portfolios=portfolios,
+                              balance_start=100_000,
+                              date_start=datetime(2007, 12, 31))
+
+    df_strategy, df_yield_by_years, chart_name = start(test_port)
 
     tl.plot_capital_plotly(test_port.FOLDER_WITH_IMG + chart_name,
                            list(df_strategy.Date),
