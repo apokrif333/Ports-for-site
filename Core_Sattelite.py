@@ -1,5 +1,4 @@
 from datetime import datetime
-from dateutil.relativedelta import relativedelta as rdelta
 from libs import trading_lib as tl
 
 import base_ports, SMA_and_Mom, Target_Vol
