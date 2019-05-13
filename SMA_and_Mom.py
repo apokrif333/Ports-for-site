@@ -2,6 +2,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta as rdelta
 from libs import trading_lib as tl
 
+import math
 import base_ports
 import pandas as pd
 
@@ -140,11 +141,11 @@ class SMAandMomentum(base_ports.BasePortfolio):
 
         data = self.all_tickers_data
         for index in range(start_index, len(self.trading_days)):
-            stocks_sma = data[self.signal_stocks]['SMA_' + str(self.sma_period)][start_index]
-            stocks_mom = data[self.signal_stocks]['Momentum_' + str(self.momentum_stocks)][start_index]
-            bonds_mom = data[self.signal_bonds]['Momentum_' + str(self.momentum_bonds)][start_index]
+            stocks_sma = data[self.signal_stocks]['SMA_' + str(self.sma_period)][index]
+            stocks_mom = data[self.signal_stocks]['Momentum_' + str(self.momentum_stocks)][index]
+            bonds_mom = data[self.signal_bonds]['Momentum_' + str(self.momentum_bonds)][index]
 
-            if stocks_sma is not None and stocks_mom is not None and bonds_mom is not None:
+            if math.isnan(stocks_sma) is False and math.isnan(stocks_mom) is False and math.isnan(bonds_mom) is False:
                 break
 
         return index

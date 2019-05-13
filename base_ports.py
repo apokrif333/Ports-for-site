@@ -332,7 +332,7 @@ def working_with_capital(test_port, day_number):
 
 
 def start(test_port) -> (pd.DataFrame, pd.DataFrame, str):
-    # Указываем, какой порт анализировать
+    # Specify which port to analyze. In the base portfolio it is alone.
     test_port.new_port = next(iter(test_port.portfolios))
 
     # Preprocessing data
