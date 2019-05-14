@@ -277,24 +277,24 @@ if __name__ == "__main__":
     ]
     portfolios = {
         ports_names[0]:
-            {'VFINX': 1.0},
+            {'QQQ': .8, 'TLT': .2},
         ports_names[1]:
-            {'VEURX': 1.0},
+            {'SCZ': .8, 'TLT': .2},
         ports_names[2]:
-            {'VUSTX': 1.0},
+            {'TLT': 1.0},
         ports_names[3]:
-            {'VUSTX': 1.0}
+            {'TLT': 1.0}
     }
     signal_port = {
         ports_names[0]: 'VFINX',
-        ports_names[1]: 'VEURX',
+        ports_names[1]: 'VINEX',
         ports_names[2]: 'VUSTX',
         ports_names[3]: 'VUSTX'
     }
     multi_mom = {
         1: 0.33,
         3: 0.33,
-        6: 0.34
+        6: 0.34,
     }
     absolute_mom = 'VFINX'
 
@@ -303,7 +303,7 @@ if __name__ == "__main__":
                               signal_port=signal_port,
                               momentums=multi_mom,
                               use_absolute_mom=False,
-                              date_start=datetime(2000, 6, 1),
+                              date_start=datetime(2007, 12, 5),
                               benchmark='VFINX')
 
     df_strategy, df_yield_by_years, chart_name = start(test_port)
@@ -314,6 +314,6 @@ if __name__ == "__main__":
                            df_yield_by_years,
                            portfolios)
 
-    tl.save_csv(test_port.FOLDER_TO_SAVE,
-                chart_name + str(test_port.ports_tickers()),
-                df_strategy)
+    # tl.save_csv(test_port.FOLDER_TO_SAVE,
+    #             chart_name + str(test_port.ports_tickers()),
+    #             df_strategy)

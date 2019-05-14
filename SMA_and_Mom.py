@@ -276,17 +276,20 @@ def start(test_port) -> (pd.DataFrame, pd.DataFrame, str):
 if __name__ == "__main__":
     portfolios = {
         'high_risk':
-            {'QQQ': .6, 'FBT': .4},
+            {'QQQ': .32, 'DIA': .24, 'XLV': .36, 'VUSTX': .26},
         'mid_risk':
-            {'DIA': .6, 'XLP': .4},
+            {'QQQ': .32, 'DIA': .24, 'XLV': .36, 'VUSTX': .26},
         'mid_save':
-            {'TLT': .6, 'SPY': .4},
+            {'VUSTX': .7, 'QQQ': .1, 'DIA': .1, 'XLV': .1},
         'high_save':
-            {'TLT': .8, 'GLD': .2}
+            {'VUSTX': 1.0}
     }
     test_port = SMAandMomentum(portfolios=portfolios,
                                rebalance='monthly',
-                               trade_rebalance_at='close')
+                               trade_rebalance_at='close',
+                               date_start=datetime(1995, 9, 5),
+                               date_end=datetime(2008, 1, 1),
+                               signal_bonds='VUSTX')
 
     df_strategy, df_yield_by_years, chart_name = start(test_port)
 
