@@ -227,14 +227,14 @@ def cagr(date: list, capital: list) -> float:
 
 
 # Считаем годовое отклонение
-def st_dev(capital: list) -> float:
+def st_dev(capital: list, period: int = 252) -> float:
     day_cng = []
     for i in range(len(capital)):
         if i == 0:
             day_cng.append(0)
         else:
             day_cng.append(capital[i] / capital[i - 1] - 1)
-    return stat.stdev(day_cng) * math.sqrt(252) if stat.stdev(day_cng) != 0 else 999
+    return stat.stdev(day_cng) * math.sqrt(period) if stat.stdev(day_cng) != 0 else 999
 
 
 # Считаем предельную просадку
