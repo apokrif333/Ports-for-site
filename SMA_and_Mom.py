@@ -86,17 +86,17 @@ class SMAandMomentum(base_ports.BasePortfolio):
                 f"Incorrect value in portfolios names - {port_name}"
 
     # Junior functions for calculations -------------------------------------------------------------------------------
-    def calculate_sma(self):
+    def calculate_sma(self, recalculate: bool = False):
 
         df = tl.load_csv(self.signal_stocks)
-        if 'SMA_' + str(self.sma_period) in df.keys():
-            return
-        else:
+        if recalculate or 'SMA_' + str(self.sma_period) not in df.keys():
             print(f"Calculate SMA for {self.signal_stocks} with {self.sma_period} period")
             df['SMA_' + str(self.sma_period)] = round(df['Close'].rolling(self.sma_period).mean(), 2)
             tl.save_csv(self.FOLDER_WITH_DATA, self.signal_stocks, df)
+        else:
+            return
 
-    def calculate_momentum(self, asset: str):
+    def calculate_momentum(self, asset: str, recalculate: bool = False):
 
         if asset == 'stocks':
             ticker, mom = self.signal_stocks, self.momentum_stocks
@@ -106,9 +106,7 @@ class SMAandMomentum(base_ports.BasePortfolio):
             raise ValueError("Incorrect value for 'asset' in 'calculate_momentum' func")
 
         df = tl.load_csv(ticker)
-        if 'Momentum_' + str(mom) in df.keys():
-            return
-        else:
+        if recalculate or 'Momentum_' + str(mom) not in df.keys():
             print(f"Calculate momentum for {ticker} with {mom} month-period")
             mom_list = []
             for day in range(len(df.Date)):
@@ -133,6 +131,8 @@ class SMAandMomentum(base_ports.BasePortfolio):
 
                 else:
                     mom_list.append(None)
+        else:
+            return
 
         df['Momentum_' + str(mom)] = mom_list
         tl.save_csv(self.FOLDER_WITH_DATA, ticker, df)
@@ -170,15 +170,16 @@ class SMAandMomentum(base_ports.BasePortfolio):
         elif stocks_price > stocks_sma and (stocks_mom < 1 or bonds_mom >= 1):
             self.new_port = 'mid_risk'
 
-        # High_Safe
-        elif stocks_price <= stocks_sma and stocks_mom < 1:
+        # High_Safe bonds_mom < 1 stocks_mom < 1
+        elif stocks_price <= stocks_sma and bonds_mom < 1:
             self.new_port = 'high_save'
 
         # Mid_Safe
-        elif stocks_price <= stocks_sma and stocks_mom >= 1:
+        elif stocks_price <= stocks_sma:
             self.new_port = 'mid_save'
 
         else:
+            print(f"Stock: {stocks_price}, SMA: {stocks_sma}, Stock_mom: {stocks_mom}, Bond_mom: {bonds_mom}")
             print(f"{self.trading_days[day_number]} date does not fall under the rebalance conditions")
 
 
@@ -192,12 +193,19 @@ def working_with_capital(test_port, day_number: int):
         test_port.rebalance_port(capital, day_number)
 
 
-def start(test_port) -> (pd.DataFrame, pd.DataFrame, str):
+def start(test_port, recalculate_variables: bool = False) -> (pd.DataFrame, pd.DataFrame, str):
+    """
+
+    :param test_port: initialized class
+    :param recalculate_variables: recalculate SMA and momentum values
+    :return:
+    """
+
     # Preprocessing data
     test_port.download_data()
-    test_port.calculate_sma()
-    test_port.calculate_momentum(asset='stocks')
-    test_port.calculate_momentum(asset='bonds')
+    test_port.calculate_sma(recalculate=recalculate_variables)
+    test_port.calculate_momentum(asset='stocks', recalculate=recalculate_variables)
+    test_port.calculate_momentum(asset='bonds', recalculate=recalculate_variables)
     start_date, end_date = test_port.find_oldest_newest_dates()
     test_port.cut_data_by_dates(start_date, end_date)
     test_port.create_columns_for_strategy_dict()
@@ -274,22 +282,30 @@ def start(test_port) -> (pd.DataFrame, pd.DataFrame, str):
 
 
 if __name__ == "__main__":
+    # Обычный портфель обходится без плеча. Но если садить что-то круче DIA, лучше взять хотя бы 1.3 плечо на бонды
     portfolios = {
         'high_risk':
-            {'QQQ': .32, 'DIA': .24, 'XLV': .36, 'VUSTX': .26},
+            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
         'mid_risk':
-            {'QQQ': .32, 'DIA': .24, 'XLV': .36, 'VUSTX': .26},
+            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
         'mid_save':
-            {'VUSTX': .7, 'QQQ': .1, 'DIA': .1, 'XLV': .1},
+            {'TLT': .25 * 1.3, 'GLD': .25 * 1.3, 'FBT': .15 * .5, 'FDN': .20 * .5, 'IGV': .20 * .5, 'IHI': .15 * .5,
+             'ITA': .30 * .5},
         'high_save':
-            {'VUSTX': 1.0}
+            {'TLT': .8 * 1.15, 'GLD': .2}
     }
-    test_port = SMAandMomentum(portfolios=portfolios,
-                               rebalance='monthly',
-                               trade_rebalance_at='close',
-                               date_start=datetime(1995, 9, 5),
-                               date_end=datetime(2008, 1, 1),
-                               signal_bonds='VUSTX')
+    test_port = SMAandMomentum(
+        balance_start=5_000,
+        portfolios=portfolios,
+        rebalance='monthly',
+        trade_rebalance_at='close',
+        date_start=datetime(2006, 9, 5),
+        date_end=datetime.now(),
+        signal_stocks='SPY',
+        signal_bonds='TLT',
+        benchmark='QQQ',
+        sma_period=200
+    )
 
     df_strategy, df_yield_by_years, chart_name = start(test_port)
 
@@ -302,3 +318,27 @@ if __name__ == "__main__":
     tl.save_csv(test_port.FOLDER_TO_SAVE,
                 chart_name + str(test_port.ports_tickers()),
                 df_strategy)
+
+""" Ports
+portfolios = {
+        'high_risk':
+            {'DJIndex': .8, 'Treasures': .2},
+        'mid_risk':
+            {'DJIndex': .8, 'Treasures': .2 * 1.3},
+        'mid_save':
+            {'DJIndex': .5, 'Treasures': .5 * 1.3},
+        'high_save':
+            {'Treasures': 1.0}
+    }
+    
+portfolios = {
+    'high_risk':
+        {'FBT': .15*.8, 'FDN': .20*.8, 'IGV': .20*.8, 'IHI': .15*.8, 'ITA': .30*.8, 'TLT': .2 * 1.3},
+    'mid_risk':
+        {'FBT': .15*.8, 'FDN': .20*.8, 'IGV': .20*.8, 'IHI': .15*.8, 'ITA': .30*.8, 'TLT': .2 * 1.3},
+    'mid_save':
+        {'TLT': .25 * 1.3, 'GLD': .25 * 1.3, 'FBT': .15*.5, 'FDN': .20*.5, 'IGV': .20*.5, 'IHI': .15*.5, 'ITA': .30*.5},
+    'high_save':
+        {'TLT': .8 * 1.15, 'GLD': .2}
+    }
+"""

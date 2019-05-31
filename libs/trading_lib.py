@@ -221,6 +221,7 @@ def correct_file_by_dates(file: pd.DataFrame, start: datetime, end: datetime) ->
 # Блок финансовых метрик -----------------------------------------------------------------------------------------------
 # Считаем CAGR
 def cagr(date: list, capital: list) -> float:
+    capital = np.around(capital, decimals=-2)
     years = (date[-1].year + date[-1].month / 12) - (date[0].year + date[0].month / 12)
     cagr = ((capital[-1] / capital[0]) ** (1 / years) - 1) * 100
     return round(cagr, 2)

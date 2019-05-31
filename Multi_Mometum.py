@@ -85,14 +85,13 @@ class MultiMomentum(base_ports.BasePortfolio):
         self.unique_tickers.update([self.absolute_mom])
 
     # Junior functions for calculations -------------------------------------------------------------------------------
-    def calculate_momentum(self):
+    def calculate_momentum(self, recalc: bool = False):
         for ticker in set(self.tickers_for_mom):
             df = tl.load_csv(ticker)
 
             for mom in self.momentums.keys():
-                if 'Momentum_' + str(mom) in df.keys():
-                    continue
-                else:
+
+                if recalc or 'Momentum_' + str(mom) not in df.keys():
                     print(f"Calculate momentum for {ticker} with {mom} month-period")
                     mom_list = []
                     for day in range(len(df.Date)):
@@ -119,6 +118,9 @@ class MultiMomentum(base_ports.BasePortfolio):
 
                         else:
                             mom_list.append(None)
+
+                else:
+                    continue
 
                 df['Momentum_' + str(mom)] = mom_list
             tl.save_csv(self.FOLDER_WITH_DATA, ticker, df)
@@ -163,7 +165,7 @@ class MultiMomentum(base_ports.BasePortfolio):
             self.new_port = list(self.signal_port.keys())[0]
 
         # Risk_2
-        elif absolute > 1.0 and mom_list[0] < mom_list[1] > 1.0:
+        elif absolute > 1.0 and mom_list[0] <= mom_list[1] > 1.0:
             self.new_port = list(self.signal_port.keys())[1]
 
         # High_Safe
@@ -175,11 +177,12 @@ class MultiMomentum(base_ports.BasePortfolio):
             self.new_port = list(self.signal_port.keys())[3]
 
         else:
+            print(f"Absolute: {absolute}, 0: {mom_list[0]}, 1: { mom_list[1]}, 2: { mom_list[2]}, 3:{ mom_list[3]}")
             print(f"{self.trading_days[day_number]} date does not fall under the rebalance conditions")
 
-        print(self.trading_days[day_number])
-        print(self.new_port)
-        print(mom_list)
+        # print(self.trading_days[day_number])
+        # print(self.new_port)
+        # print(mom_list)
 
 
 def working_with_capital(test_port, day_number: int):
@@ -192,10 +195,10 @@ def working_with_capital(test_port, day_number: int):
         test_port.rebalance_port(capital, day_number)
 
 
-def start(test_port) -> (pd.DataFrame, pd.DataFrame, str):
+def start(test_port, recalculate_variables: bool = False) -> (pd.DataFrame, pd.DataFrame, str):
     # Preprocessing data
     test_port.download_data()
-    test_port.calculate_momentum()
+    test_port.calculate_momentum(recalc=recalculate_variables)
     start_date, end_date = test_port.find_oldest_newest_dates()
     test_port.cut_data_by_dates(start_date, end_date)
     test_port.create_columns_for_strategy_dict()
@@ -277,34 +280,42 @@ if __name__ == "__main__":
     ]
     portfolios = {
         ports_names[0]:
-            {'QQQ': .8, 'TLT': .2},
+            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
         ports_names[1]:
-            {'SCZ': .8, 'TLT': .2},
+            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
         ports_names[2]:
-            {'TLT': 1.0},
+            {'TLT': .8 * 1.15, 'GLD': .2},
         ports_names[3]:
-            {'TLT': 1.0}
+            {'TLT': .25 * 1.3, 'GLD': .25 * 1.3, 'FBT': .15 * .5, 'FDN': .20 * .5, 'IGV': .20 * .5, 'IHI': .15 * .5,
+             'ITA': .30 * .5},
     }
     signal_port = {
-        ports_names[0]: 'VFINX',
-        ports_names[1]: 'VINEX',
-        ports_names[2]: 'VUSTX',
-        ports_names[3]: 'VUSTX'
+        ports_names[0]: 'SPY',
+        ports_names[1]: 'SPY',
+        ports_names[2]: 'TLT',
+        ports_names[3]: 'TLT'
     }
     multi_mom = {
-        1: 0.33,
-        3: 0.33,
-        6: 0.34,
+        1: .1,
+        2: .1,
+        3: .1,
+        4: .1,
+        5: .1,
+        6: .1,
+        7: .1,
+        8: .1,
+        9: .1,
+        10: .1,
     }
-    absolute_mom = 'VFINX'
+    absolute_mom = 'DJIndex'
 
     test_port = MultiMomentum(portfolios=portfolios,
                               absolute_mom=absolute_mom,
                               signal_port=signal_port,
                               momentums=multi_mom,
                               use_absolute_mom=False,
-                              date_start=datetime(2007, 12, 5),
-                              benchmark='VFINX')
+                              date_start=datetime(2006, 8, 5),
+                              benchmark='DJIndex')
 
     df_strategy, df_yield_by_years, chart_name = start(test_port)
 
@@ -317,3 +328,16 @@ if __name__ == "__main__":
     # tl.save_csv(test_port.FOLDER_TO_SAVE,
     #             chart_name + str(test_port.ports_tickers()),
     #             df_strategy)
+
+""" Ports
+    portfolios = {
+        ports_names[0]:
+            {'DJIndex': .8, 'Treasures': .2},
+        ports_names[1]:
+            {'DJIndex': .8, 'Treasures': .2},
+        ports_names[2]:
+            {'Treasures': 1.0},
+        ports_names[3]:
+            {'DJIndex': .4, 'Treasures': .6}
+    }
+"""
