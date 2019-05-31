@@ -285,17 +285,16 @@ if __name__ == "__main__":
     # Обычный портфель обходится без плеча. Но если садить что-то круче DIA, лучше взять хотя бы 1.3 плечо на бонды
     portfolios = {
         'high_risk':
-            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
+            {'QQQ': .44 * .8, 'XLU': .19 * .8, 'EEM': .37 * .8, 'TLT': 1.0 * .2},
         'mid_risk':
-            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
+            {'QQQ': .44 * .8, 'XLU': .19 * .8, 'EEM': .37 * .8, 'TLT': 1.0 * .2},
         'mid_save':
-            {'TLT': .25 * 1.3, 'GLD': .25 * 1.3, 'FBT': .15 * .5, 'FDN': .20 * .5, 'IGV': .20 * .5, 'IHI': .15 * .5,
-             'ITA': .30 * .5},
+            {'QQQ': .44 * .4, 'XLU': .19 * .4, 'EEM': .37 * .4, 'TLT': 1.0 * .3, 'GLD': 1.0 * .3},
         'high_save':
-            {'TLT': .8 * 1.15, 'GLD': .2}
+            {'TLT': .8, 'GLD': .2}
     }
     test_port = SMAandMomentum(
-        balance_start=5_000,
+        balance_start=10_000,
         portfolios=portfolios,
         rebalance='monthly',
         trade_rebalance_at='close',
@@ -320,25 +319,35 @@ if __name__ == "__main__":
                 df_strategy)
 
 """ Ports
-portfolios = {
+    portfolios = {
+            'high_risk':
+                {'DJIndex': .8, 'Treasures': .2},
+            'mid_risk':
+                {'DJIndex': .8, 'Treasures': .2 * 1.3},
+            'mid_save':
+                {'DJIndex': .5, 'Treasures': .5 * 1.3},
+            'high_save':
+                {'Treasures': 1.0}
+        }
+    portfolios = {
         'high_risk':
-            {'DJIndex': .8, 'Treasures': .2},
+            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
         'mid_risk':
-            {'DJIndex': .8, 'Treasures': .2 * 1.3},
+            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
         'mid_save':
-            {'DJIndex': .5, 'Treasures': .5 * 1.3},
+            {'TLT': .3 * 1.3, 'GLD': .3 * 1.3, 'FBT': .15 * .4, 'FDN': .20 * .4, 'IGV': .20 * .4, 'IHI': .15 * .4,
+             'ITA': .30 * .4},
         'high_save':
-            {'Treasures': 1.0}
+            {'TLT': .8 * 1.3, 'GLD': .2 * 1.3}
     }
-    
-portfolios = {
-    'high_risk':
-        {'FBT': .15*.8, 'FDN': .20*.8, 'IGV': .20*.8, 'IHI': .15*.8, 'ITA': .30*.8, 'TLT': .2 * 1.3},
-    'mid_risk':
-        {'FBT': .15*.8, 'FDN': .20*.8, 'IGV': .20*.8, 'IHI': .15*.8, 'ITA': .30*.8, 'TLT': .2 * 1.3},
-    'mid_save':
-        {'TLT': .25 * 1.3, 'GLD': .25 * 1.3, 'FBT': .15*.5, 'FDN': .20*.5, 'IGV': .20*.5, 'IHI': .15*.5, 'ITA': .30*.5},
-    'high_save':
-        {'TLT': .8 * 1.15, 'GLD': .2}
+    portfolios = {
+        'high_risk':
+            {'QQQ': .44 * .8, 'XLU': .19 * .8, 'EEM': .37 * .8, 'TLT': 1.0 * .2},
+        'mid_risk':
+            {'QQQ': .44 * .8, 'XLU': .19 * .8, 'EEM': .37 * .8, 'TLT': 1.0 * .2},
+        'mid_save':
+            {'QQQ': .44 * .4, 'XLU': .19 * .4, 'EEM': .37 * .4, 'TLT': 1.0 * .3, 'GLD': 1.0 * .3},
+        'high_save':
+            {'TLT': .8, 'GLD': .2}
     }
 """

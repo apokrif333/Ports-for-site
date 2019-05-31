@@ -284,10 +284,10 @@ if __name__ == "__main__":
         ports_names[1]:
             {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
         ports_names[2]:
-            {'TLT': .8 * 1.15, 'GLD': .2},
+            {'TLT': .8 * 1.3, 'GLD': .2 * 1.3},
         ports_names[3]:
-            {'TLT': .25 * 1.3, 'GLD': .25 * 1.3, 'FBT': .15 * .5, 'FDN': .20 * .5, 'IGV': .20 * .5, 'IHI': .15 * .5,
-             'ITA': .30 * .5},
+            {'TLT': .3 * 1.3, 'GLD': .3 * 1.3, 'FBT': .15 * .4, 'FDN': .20 * .4, 'IGV': .20 * .4, 'IHI': .15 * .4,
+             'ITA': .30 * .4},
     }
     signal_port = {
         ports_names[0]: 'SPY',
@@ -296,18 +296,21 @@ if __name__ == "__main__":
         ports_names[3]: 'TLT'
     }
     multi_mom = {
-        1: .1,
-        2: .1,
-        3: .1,
-        4: .1,
-        5: .1,
-        6: .1,
-        7: .1,
-        8: .1,
-        9: .1,
-        10: .1,
+        1: 1,
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
     }
-    absolute_mom = 'DJIndex'
+    for key, _ in multi_mom.items():
+        multi_mom[key] = 1 / len(list(multi_mom.keys()))
+
+    absolute_mom = 'QQQ'
 
     test_port = MultiMomentum(portfolios=portfolios,
                               absolute_mom=absolute_mom,
@@ -315,7 +318,7 @@ if __name__ == "__main__":
                               momentums=multi_mom,
                               use_absolute_mom=False,
                               date_start=datetime(2006, 8, 5),
-                              benchmark='DJIndex')
+                              benchmark='QQQ')
 
     df_strategy, df_yield_by_years, chart_name = start(test_port)
 
@@ -339,5 +342,16 @@ if __name__ == "__main__":
             {'Treasures': 1.0},
         ports_names[3]:
             {'DJIndex': .4, 'Treasures': .6}
+    }
+    portfolios = {
+        ports_names[0]:
+            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
+        ports_names[1]:
+            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
+        ports_names[2]:
+            {'TLT': .8 * 1.3, 'GLD': .2 * 1.3},
+        ports_names[3]:
+            {'TLT': .3 * 1.3, 'GLD': .3 * 1.3, 'FBT': .15 * .4, 'FDN': .20 * .4, 'IGV': .20 * .4, 'IHI': .15 * .4,
+             'ITA': .30 * .4},
     }
 """
