@@ -284,27 +284,26 @@ def start(test_port, recalculate_variables: bool = False) -> (pd.DataFrame, pd.D
 if __name__ == "__main__":
     # Обычный портфель обходится без плеча. Но если садить что-то круче DIA, лучше взять хотя бы 1.3 плечо на бонды
     portfolios = {
-        'high_risk':
-            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
-        'mid_risk':
-            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
-        'mid_save':
-            {'TLT': .3 * 1.3, 'GLD': .3 * 1.3, 'FBT': .15 * .4, 'FDN': .20 * .4, 'IGV': .20 * .4, 'IHI': .15 * .4,
-             'ITA': .30 * .4},
-        'high_save':
-            {'TLT': .8 * 1.3, 'GLD': .2 * 1.3}
-    }
+            'high_risk':
+                {'DJIndex': .8, 'Treasures': .2},
+            'mid_risk':
+                {'DJIndex': .8, 'Treasures': .2 * 1.3},
+            'mid_save':
+                {'DJIndex': .5, 'Treasures': .5 * 1.3},
+            'high_save':
+                {'Treasures': 1.0}
+        }
     test_port = SMAandMomentum(
-        balance_start=10_000,
+        balance_start=5_000,
         portfolios=portfolios,
         rebalance='monthly',
         trade_rebalance_at='close',
-        date_start=datetime(2006, 9, 5),
+        date_start=datetime(1850, 9, 5),
         date_end=datetime.now(),
-        signal_stocks='SPY',
-        signal_bonds='TLT',
-        benchmark='QQQ',
-        sma_period=200
+        signal_stocks='DJIndex',
+        signal_bonds='Treasures',
+        benchmark='DJIndex',
+        sma_period=175
     )
 
     df_strategy, df_yield_by_years, chart_name = start(test_port)

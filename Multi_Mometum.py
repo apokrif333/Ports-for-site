@@ -257,7 +257,7 @@ def start(test_port, recalculate_variables: bool = False) -> (pd.DataFrame, pd.D
                 elif test_port.capital_not_placed is False:
                     test_port.typical_day(day_number)
 
-        # Transform data
+    # Transform data
     df_strategy = pd.DataFrame.from_dict(test_port.strategy_data)
     df_strategy = df_strategy[df_strategy.Capital != 0]
     df_strategy['Capital'] = df_strategy.Capital.astype(int)
