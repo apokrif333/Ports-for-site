@@ -410,11 +410,12 @@ def start(test_port) -> (pd.DataFrame, pd.DataFrame, str):
 
 if __name__ == '__main__':
     portfolios = {'Port_1':
-                      {'SPY': .5, 'TLT': .5},
+                      {'DJIndex': .5, 'Treasures': .5},
                   }
     test_port = BasePortfolio(portfolios=portfolios,
                               balance_start=100_000,
-                              date_start=datetime(2007, 12, 31))
+                              date_start=datetime(1880, 12, 31),
+                              benchmark='DJIndex')
 
     df_strategy, df_yield_by_years, chart_name = start(test_port)
 
