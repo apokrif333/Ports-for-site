@@ -30,7 +30,7 @@ class TargetVolatility(base_ports.BasePortfolio):
                  balance_start: int = 10_000,
                  date_start: datetime = datetime(2008, 1, 1),
                  date_end: datetime = datetime.now(),
-                 benchmark: str = 'QQQ',
+                 benchmark: str = 'DJIndex',
                  withdraw_or_depo: bool = False,
                  value_withdraw_or_depo: float = -0.67,
                  vol_calc_period: str = 'month',
@@ -54,7 +54,7 @@ class TargetVolatility(base_ports.BasePortfolio):
         :param withdraw_or_depo: have any withdrawal/deposit for the period specified in the 'rebalance'
         :param value_withdraw_or_depo: in percent. Negative value - withdrawal. Positive - deposit.
         :param vol_calc_period: 'day', 'month'. What time slice is taken for calculations. Volatility will be counted by day or month.
-        :param vol_calc_range: Number of time slices. For example, if vol_calc_period = day and vol_calc_range = 20, then the volatility will be calculated based on the past 20 days. If vol_calc_period = day, than will be calculated based on the past 20 months.
+        :param vol_calc_range: Number of time slices. For example, if vol_calc_period = day and vol_calc_range = 20, then the volatility will be calculated based on the past 20 days. If vol_calc_period = month, than will be calculated based on the past 20 months.
         :param vol_target:
         :para, vola_type: 'standard' - we calculate vol just for risk_on portfolio to capital, like PVZ. 'modify' - we calculate vol for risk_on and risk_off portfolios. That is, we consider the vol of our entire portfolio, taking into account the impact of the risk-off part.
         :param use_margin: if the volatility is lower than the vol_target, the leverage is used to match the volatility
@@ -123,6 +123,7 @@ class TargetVolatility(base_ports.BasePortfolio):
         # Find index for start_date
         if self.vol_calc_period == 'month':
             start_date = self.trading_days[day_number] - rdelta(months=self.vol_calc_range)
+            print(start_date)
             start_date = self.trading_days[
                 (self.trading_days.dt.year == start_date.year) & (self.trading_days.dt.month == start_date.month)].iloc[-1]
             start_index = list(self.trading_days).index(start_date)
@@ -420,17 +421,19 @@ def start(test_port) -> (pd.DataFrame, pd.DataFrame, str):
 
 
 if __name__ == "__main__":
-    portfolios = {'risk_on':
-                      {'DIA': 1.0},
-                  'risk_off':
-                      {'TLT': 1.0}
-                  }
+    portfolios = {
+        'risk_on':
+            {'QQQ': 1.0},
+        'risk_off':
+            {'IEF': 1.0}
+    }
     test_port = TargetVolatility(portfolios=portfolios,
-                                 date_start=datetime(2007, 12, 20),
-                                 vol_target=9.0,
+                                 date_start=datetime(1915, 1, 1),
+                                 benchmark='QQQ',
+                                 vol_target=6.0,
                                  rebalance='monthly',
-                                 vol_calc_period='day',
-                                 vol_calc_range=15)
+                                 vol_calc_period='month',
+                                 vol_calc_range=1)
 
     df_strategy, df_yield_by_years, chart_name = start(test_port)
 
@@ -443,3 +446,10 @@ if __name__ == "__main__":
     tl.save_csv(test_port.FOLDER_TO_SAVE,
                 chart_name + str(test_port.ports_tickers()),
                 df_strategy)
+
+
+# portfolios = {'risk_on':
+#                   {'DJIndex': 1.0},
+#               'risk_off':
+#                   {'Treasures': 1.0}
+#               }

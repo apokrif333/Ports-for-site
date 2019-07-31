@@ -280,20 +280,19 @@ if __name__ == "__main__":
     ]
     portfolios = {
         ports_names[0]:
-            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
+            {'DJIndex': .8, 'Treasures': .2},
         ports_names[1]:
-            {'FBT': .15 * .8, 'FDN': .20 * .8, 'IGV': .20 * .8, 'IHI': .15 * .8, 'ITA': .30 * .8, 'TLT': .2 * 1.3},
+            {'DJIndex': .8, 'Treasures': .2},
         ports_names[2]:
-            {'TLT': .8 * 1.3, 'GLD': .2 * 1.3},
+            {'Treasures': 1.0},
         ports_names[3]:
-            {'TLT': .3 * 1.3, 'GLD': .3 * 1.3, 'FBT': .15 * .4, 'FDN': .20 * .4, 'IGV': .20 * .4, 'IHI': .15 * .4,
-             'ITA': .30 * .4},
+            {'DJIndex': .4, 'Treasures': .6}
     }
     signal_port = {
-        ports_names[0]: 'SPY',
-        ports_names[1]: 'SPY',
-        ports_names[2]: 'TLT',
-        ports_names[3]: 'TLT'
+        ports_names[0]: 'DJIndex',
+        ports_names[1]: 'DJIndex',
+        ports_names[2]: 'Treasures',
+        ports_names[3]: 'Treasures'
     }
     multi_mom = {
         1: 1,
@@ -310,15 +309,15 @@ if __name__ == "__main__":
     for key, _ in multi_mom.items():
         multi_mom[key] = 1 / len(list(multi_mom.keys()))
 
-    absolute_mom = 'QQQ'
+    absolute_mom = 'DJIndex'
 
     test_port = MultiMomentum(portfolios=portfolios,
                               absolute_mom=absolute_mom,
                               signal_port=signal_port,
                               momentums=multi_mom,
                               use_absolute_mom=False,
-                              date_start=datetime(2006, 8, 5),
-                              benchmark='QQQ')
+                              date_start=datetime(1900, 1, 1),
+                              benchmark='DJIndex')
 
     df_strategy, df_yield_by_years, chart_name = start(test_port)
 
