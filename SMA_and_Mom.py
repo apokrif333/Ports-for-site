@@ -202,7 +202,7 @@ def start(test_port, recalculate_variables: bool = False) -> (pd.DataFrame, pd.D
     """
 
     # Preprocessing data
-    test_port.download_data()
+    test_port.download_data(True)
     test_port.calculate_sma(recalculate=recalculate_variables)
     test_port.calculate_momentum(asset='stocks', recalculate=recalculate_variables)
     test_port.calculate_momentum(asset='bonds', recalculate=recalculate_variables)
@@ -285,11 +285,12 @@ if __name__ == "__main__":
     # Обычный портфель обходится без плеча. Но если садить что-то круче DIA, лучше взять хотя бы 1.3 плечо на бонды
     portfolios = {
         'high_risk':
-            {'QQQ': 1.0 * .8, 'TLT': .2 * 1.3},
+            {'FBT': .15 * .7, 'FDN': .20 * .7, 'IGV': .20 * .7, 'IHI': .15 * .7, 'ITA': .30 * .7, 'TLT': .3 * 1.3},
         'mid_risk':
-            {'QQQ': 1.0 * .8, 'TLT': .2 * 1.3},
+            {'FBT': .15 * .7, 'FDN': .20 * .7, 'IGV': .20 * .7, 'IHI': .15 * .7, 'ITA': .30 * .7, 'TLT': .3 * 1.3},
         'mid_save':
-            {'TLT': .3 * 1.3, 'GLD': .3 * 1.3, 'QQQ': 1.0 * .4},
+            {'TLT': .3 * 1.3, 'GLD': .3 * 1.3, 'FBT': .15 * .4, 'FDN': .20 * .4, 'IGV': .20 * .4, 'IHI': .15 * .4,
+             'ITA': .3 * .4},
         'high_save':
             {'TLT': .8 * 1.3, 'GLD': .2 * 1.3}
     }
@@ -299,7 +300,7 @@ if __name__ == "__main__":
         portfolios=portfolios,
         rebalance='monthly',
         trade_rebalance_at='close',
-        date_start=datetime(2017, 1, 1),
+        date_start=datetime(2000, 1, 1),
         date_end=datetime.now(),
         signal_stocks='SPY',
         signal_bonds='TLT',
@@ -351,4 +352,15 @@ if __name__ == "__main__":
         'high_save':
             {'TLT': .8, 'GLD': .2}
     }
+    portfolios = {
+        'high_risk':
+            {'QQQ': 1.0 * .8, 'TLT': .2 * 1.3},
+        'mid_risk':
+            {'QQQ': 1.0 * .8, 'TLT': .2 * 1.3},
+        'mid_save':
+            {'TLT': .3 * 1.3, 'GLD': .3 * 1.3, 'QQQ': 1.0 * .4},
+        'high_save':
+            {'TLT': .8 * 1.3, 'GLD': .2 * 1.3}
+    }
+
 """
